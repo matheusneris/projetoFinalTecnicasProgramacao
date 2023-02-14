@@ -6,4 +6,6 @@ public record Resultado(Integer mandante,
     public String toString() {
         return mandante + " x " + visitante;
     }
+
+    public Long getUm(){ return Long.parseLong("1"); }
 }

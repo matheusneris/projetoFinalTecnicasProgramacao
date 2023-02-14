@@ -16,33 +16,38 @@ public class Aplicacao {
         Path file = Path.of("campeonato-brasileiro.csv");
 
         // obter a implementação: (ponto extra - abstrair para interface)
-        CampeonatoBrasileiroImpl resultados =
-                new CampeonatoBrasileiroImpl(file, (jogo) -> jogo.data().data().getYear() == 2019);
+        CampeonatoBrasileiroImpl brasileirao =
+                new CampeonatoBrasileiroImpl(file,
+                        (jogo) -> jogo.data().data().getYear() == 2020);
 
         // imprimir estatisticas
-        imprimirEstatisticas(resultados);
+        imprimirEstatisticas(brasileirao);
 
         // imprimir tabela ordenada
-        imprimirTabela(resultados.getTabela());
+        imprimirTabela(brasileirao.getTabela());
 
     }
 
     private static void imprimirEstatisticas(CampeonatoBrasileiroImpl brasileirao) {
-        IntSummaryStatistics statistics = brasileirao.getEstatisticasPorJogo();
+        IntSummaryStatistics estatisticas = brasileirao.getEstatisticasPorJogo();
 
-        System.out.println("Estatisticas (Total de gols) - " + statistics.getSum());
-        System.out.println("Estatisticas (Total de jogos) - " + statistics.getCount());
-        System.out.println("Estatisticas (Media de gols) - " + statistics.getAverage());
+        System.out.println("Estatisticas (Total de gols) - " + estatisticas.getSum());
+        System.out.println("Estatisticas (Total de jogos) - " + estatisticas.getCount());
+        System.out.println("Estatisticas (Media de gols) - " + estatisticas.getAverage());
 
-        Map.Entry<Resultado, Long> placarMaisRepetido = brasileirao.getPlacarMaisRepetido();
+        Map<Resultado, Long> placarMaisRepetido = brasileirao.getPlacarMaisRepetido();
 
-        System.out.println("Estatisticas (Placar mais repetido) - "
-                + placarMaisRepetido.getKey() + " (" +placarMaisRepetido.getValue() + " jogo(s))");
+        for (Map.Entry<Resultado, Long> resultado : placarMaisRepetido.entrySet()) {
+            System.out.println("Estatisticas (Placar mais repetido) - "
+                    + resultado.getKey() + " (" +resultado.getValue() + " jogo(s))");
+        }
 
-        Map.Entry<Resultado, Long> placarMenosRepetido = brasileirao.getPlacarMenosRepetido();
+        Map<Resultado, Long> placarMenosRepetido = brasileirao.getPlacarMenosRepetido();
 
-        System.out.println("Estatisticas (Placar menos repetido) - "
-                + placarMenosRepetido.getKey() + " (" +placarMenosRepetido.getValue() + " jogo(s))");
+        for (Map.Entry<Resultado, Long> resultado : placarMenosRepetido.entrySet()) {
+            System.out.println("Estatisticas (Placar menos repetido) - "
+                    + resultado.getKey() + " (" +resultado.getValue() + " jogo(s))");
+        }
 
         Long jogosCom3OuMaisGols = brasileirao.getTotalJogosCom3OuMaisGols();
         Long jogosComMenosDe3Gols = brasileirao.getTotalJogosComMenosDe3Gols();

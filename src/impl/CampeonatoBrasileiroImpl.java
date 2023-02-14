@@ -1,23 +1,24 @@
 package impl;
 
-import dominio.Jogo;
-import dominio.PosicaoTabela;
-import dominio.Resultado;
-import dominio.Time;
+import dominio.*;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.DayOfWeek;
-import java.util.IntSummaryStatistics;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class CampeonatoBrasileiroImpl {
 
+    private DateTimeFormatter formatadorData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private Map<Integer, List<Jogo>> brasileirao;
     private List<Jogo> jogos;
     private Predicate<Jogo> filtro;
@@ -30,100 +31,238 @@ public class CampeonatoBrasileiroImpl {
                 .collect(Collectors.groupingBy(
                         Jogo::rodada,
                         Collectors.mapping(Function.identity(), Collectors.toList())));
-
     }
 
     public List<Jogo> lerArquivo(Path file) throws IOException {
-        return null;
+        BufferedReader bufferedReader = new BufferedReader(new FileReader(file.toFile()));
+        String partida[] = bufferedReader.readLine().split(";");
+        List<Jogo> jogos = new ArrayList<>();
+
+        while (true){
+            LocalDate dataJogo = LocalDate.parse(partida[1], formatadorData);
+            Jogo jogo = new Jogo(Integer.parseInt(partida[0]),
+                    new DataDoJogo(dataJogo,
+                            LocalTime.parse(partida[2].replace('h',':')),
+                            dataJogo.getDayOfWeek()),
+                    new Time(partida[4]),
+                    new Time(partida[5]),
+                    new Time(partida[6]),
+                    partida[7],
+                    Integer.parseInt(partida[8]),
+                    Integer.parseInt(partida[9]),
+                    partida[10],
+                    partida[11],
+                    partida[12]
+                    );
+            jogos.add(jogo);
+            try{
+                partida = bufferedReader.readLine().split(";");
+            }catch (NullPointerException e){
+                break;
+            }
+        }
+        return jogos;
     }
 
     public IntSummaryStatistics getEstatisticasPorJogo() {
-        return null;
-    }
-
-    public Map<Jogo, Integer> getMediaGolsPorJogo() {
-        return null;
-    }
-
-    public IntSummaryStatistics GetEstatisticasPorJogo() {
-        return null;
-    }
-
-    public List<Jogo> todosOsJogos() {
-        return null;
+        IntStream jogosFiltrados = this.jogos.stream().filter(filtro).mapToInt(jogo -> jogo.visitantePlacar() + jogo.mandantePlacar());
+        return jogosFiltrados.summaryStatistics();
     }
 
     public Long getTotalVitoriasEmCasa() {
-        return null;
+        return this.jogos.stream().filter(filtro)
+                .filter(jogo -> jogo.mandantePlacar() > jogo.visitantePlacar())
+                .count();
     }
 
     public Long getTotalVitoriasForaDeCasa() {
-        return null;
+        return this.jogos.stream().filter(filtro)
+                .filter(jogo -> jogo.visitantePlacar() > jogo.mandantePlacar())
+                .count();
     }
 
     public Long getTotalEmpates() {
-        return null;
+        return this.jogos.stream().filter(filtro)
+                .filter(jogo -> jogo.mandantePlacar() == jogo.visitantePlacar())
+                .count();
     }
 
     public Long getTotalJogosComMenosDe3Gols() {
-        return null;
+        return this.jogos.stream().filter(filtro)
+                .filter(jogo -> jogo.visitantePlacar()+jogo.mandantePlacar() < 3)
+                .count();
     }
 
     public Long getTotalJogosCom3OuMaisGols() {
-        return null;
+        return this.jogos.stream().filter(filtro)
+                .filter(jogo -> jogo.visitantePlacar()+jogo.mandantePlacar() >= 3)
+                .count();
+    }
+    public Map<Resultado, Long> getPlacarMaisRepetido() {
+        List<Resultado> resultados = resultadosToList();
+        Map<Resultado, Long> repeticaoDePlacares = resultadosToMap(resultados);
+
+        Iterator iterator= repeticaoDePlacares.entrySet().iterator();
+        Resultado placarMaisRepetido = new Resultado(0,0);
+        Map.Entry<Resultado, Long> repeticaoDePlacaresEntry;
+        while (iterator.hasNext()){
+
+            repeticaoDePlacaresEntry = (Map.Entry) iterator.next();
+            try{
+                if(repeticaoDePlacaresEntry.getValue() > repeticaoDePlacares.get(placarMaisRepetido)){
+                    placarMaisRepetido = repeticaoDePlacaresEntry.getKey();
+                }
+            }catch (NullPointerException e){
+                e.printStackTrace();
+            }
+        }
+        Map<Resultado, Long> retorno = new HashMap<>();
+        retorno.put(placarMaisRepetido, repeticaoDePlacares.get(placarMaisRepetido));
+        return retorno;
     }
 
-    public Map<Resultado, Long> getTodosOsPlacares() {
-        return null;
+    private Map<Resultado, Long> resultadosToMap(List<Resultado> resultados) {
+        Map<Resultado, Long> repeticaoDePlacares = resultados.stream().collect(Collectors
+               .toMap(resultado -> resultado, resultado -> resultado.getUm(),
+                       (resultado1, resultado2) -> resultado1 + resultado2));
+        return repeticaoDePlacares;
     }
 
-    public Map.Entry<Resultado, Long> getPlacarMaisRepetido() {
-        return null;
+    private List<Resultado> resultadosToList() {
+        List<Resultado> resultados = this.jogos.stream().filter(filtro)
+                .map(jogo -> new Resultado(jogo.mandantePlacar(), jogo.visitantePlacar()))
+                .collect(Collectors.toList());
+        return resultados;
     }
 
-    public Map.Entry<Resultado, Long> getPlacarMenosRepetido() {
-        return null;
+    public Map<Resultado, Long> getPlacarMenosRepetido() {
+        List<Resultado> resultados = resultadosToList();
+        Map<Resultado, Long> repeticaoDePlacares = resultadosToMap(resultados);
+
+        Iterator iterator= repeticaoDePlacares.entrySet().iterator();
+        Resultado placarMenosRepetido = new Resultado(0,0);
+        Map.Entry<Resultado, Long> repeticaoDePlacaresEntry;
+        while (iterator.hasNext()){
+
+            repeticaoDePlacaresEntry = (Map.Entry) iterator.next();
+            try{
+                if(repeticaoDePlacaresEntry.getValue() < repeticaoDePlacares.get(placarMenosRepetido)){
+                    placarMenosRepetido = repeticaoDePlacaresEntry.getKey();
+                }
+            }catch (NullPointerException e){
+                e.printStackTrace();
+            }
+        }
+        Map<Resultado, Long> retorno = new HashMap<>();
+        retorno.put(placarMenosRepetido, repeticaoDePlacares.get(placarMenosRepetido));
+        return retorno;
     }
 
     private List<Time> getTodosOsTimes() {
-        return null;
+        List<Time> times = this.jogos.stream().filter(filtro)
+                .map(jogo -> jogo.mandante()).distinct()
+                .collect(Collectors.toList());
+
+        return times;
     }
 
-    private Map<Time, List<Jogo>> getTodosOsJogosPorTimeComoMandantes() {
-        return null;
+    private  List<Jogo> getTodosOsJogosPorTimeComoMandantes(Time time) {
+        List<Jogo> jogosTime = this.jogos.stream().filter(filtro).filter(jogo -> jogo.mandante() == time).toList();
+
+        return jogosTime;
     }
 
-    private Map<Time, List<Jogo>> getTodosOsJogosPorTimeComoVisitante() {
-        return null;
+    private List<Jogo> getTodosOsJogosPorTimeComoVisitante(Time time) {
+        List<Jogo> jogosTime = this.jogos.stream().filter(filtro).filter(jogo -> jogo.visitante() == time).toList();
+
+        return jogosTime;
+
     }
 
-    public Map<Time, List<Jogo>> getTodosOsJogosPorTime() {
-        return null;
+    public Long getPontuacaoTotalTime(List<Jogo> jogosMandante, List<Jogo> jogosVisitante) {
+        Long pontosVitoria = getPontosVitoriasTime(jogosMandante, jogosVisitante);
+        Long pontosEmpatesTime = getPontosEmpatesTime(jogosMandante, jogosVisitante);
+
+        return pontosVitoria + pontosEmpatesTime;
     }
 
-    public Map<Time, Map<Boolean, List<Jogo>>> getJogosParticionadosPorMandanteTrueVisitanteFalse() {
-        return null;
+    private Long getPontosEmpatesTime(List<Jogo> jogosMandante, List<Jogo> jogosVisitante) {
+        Long pontosEmpateMandante = jogosMandante.stream().filter(jogo -> jogo.mandantePlacar() == jogo.visitantePlacar()).count();
+        Long pontosEmpateVisitante = jogosVisitante.stream().filter(jogo -> jogo.mandantePlacar() == jogo.visitantePlacar()).count();
+
+        return pontosEmpateMandante + pontosEmpateVisitante;
+    }
+
+    private Long getPontosVitoriasTime(List<Jogo> jogosMandante, List<Jogo> jogosVisitante) {
+        Long pontosVitoriaMandante = jogosMandante.stream().filter(jogo -> jogo.mandantePlacar() > jogo.visitantePlacar()).count() * 3;
+        Long pontosVitoriaVisitante = jogosVisitante.stream().filter(jogo -> jogo.visitantePlacar() > jogo.mandantePlacar()).count() * 3;
+
+        return pontosVitoriaMandante + pontosVitoriaVisitante;
+    }
+
+    private Long getDerrotasTime(List<Jogo> jogosMandante, List<Jogo> jogosVisitante){
+        Long derrotasMandante = jogosMandante.stream().filter(jogo -> jogo.mandantePlacar() < jogo.visitantePlacar()).count();
+        Long derrotasVisitante = jogosVisitante.stream().filter(jogo -> jogo.visitantePlacar() < jogo.mandantePlacar()).count();
+
+        return derrotasMandante + derrotasVisitante;
     }
 
     public Set<PosicaoTabela> getTabela() {
-        return null;
+        List<Time> times = getTodosOsTimes();
+        List<PosicaoTabela> posicaoTabela = new ArrayList<>();
+
+        for (Time time: times) {
+            List<Jogo> jogosMandante = getTodosOsJogosPorTimeComoMandantes(time);
+            List<Jogo> jogosVisitante = getTodosOsJogosPorTimeComoVisitante(time);
+            Long golsFeitos = getTotalDeGolsFeitosPorTime(jogosMandante, jogosVisitante);
+            Long golsSofridos = getTotalDeGolsSofridosPorTime(jogosMandante, jogosVisitante);
+
+            posicaoTabela.add(new PosicaoTabela(
+               time,
+               getPontuacaoTotalTime(jogosMandante, jogosVisitante),
+                    getPontosVitoriasTime(jogosMandante, jogosVisitante)/3,
+                    getDerrotasTime(jogosMandante, jogosVisitante),
+                    getPontosEmpatesTime(jogosMandante,jogosVisitante),
+                    golsFeitos,
+                    golsSofridos,
+                    golsFeitos - golsSofridos,
+                    getTotalJogosPorTime(jogosMandante, jogosVisitante)
+            ));
+        }
+        Set<PosicaoTabela> posicaoTabelaSet = new HashSet<>(posicaoTabela);
+
+        return posicaoTabelaSet;
     }
 
-    private DayOfWeek getDayOfWeek(String dia) {
-        return null;
+    private Long getTotalJogosPorTime(List<Jogo> jogosMandante, List<Jogo> jogosVisitante){
+        Long totalJogosMandante = jogosMandante.stream().count();
+        Long totalJogosVisitante = jogosVisitante.stream().count();
+
+        return totalJogosMandante + totalJogosVisitante;
     }
 
-    private Map<Integer, Integer> getTotalGolsPorRodada() {
-        return null;
+    private Long getTotalDeGolsFeitosPorTime(List<Jogo> jogosMandante, List<Jogo> jogosVisitante) {
+        int totalGolsMandante = jogosMandante.stream()
+                .map(jogo -> jogo.mandantePlacar())
+                .reduce(0, (subtotal, proximo) -> subtotal + proximo);
+
+        int totalGolsVisitante = jogosVisitante.stream()
+                .map(jogo -> jogo.visitantePlacar())
+                .reduce(0, (subtotal, proximo) -> subtotal + proximo);
+
+        return Long.parseLong(Integer.toString(totalGolsMandante + totalGolsVisitante));
     }
 
-    private Map<Time, Integer> getTotalDeGolsPorTime() {
-        return null;
-    }
+    private Long getTotalDeGolsSofridosPorTime(List<Jogo> jogosMandante, List<Jogo> jogosVisitante){
+        int totalGolsMandante = jogosMandante.stream()
+                .map(jogo -> jogo.visitantePlacar())
+                .reduce(0, (subtotal, proximo) -> subtotal + proximo);
 
-    private Map<Integer, Double> getMediaDeGolsPorRodada() {
-        return null;
-    }
+        int totalGolsVisitante = jogosVisitante.stream()
+                .map(jogo -> jogo.mandantePlacar())
+                .reduce(0, (subtotal, proximo) -> subtotal + proximo);
 
+        return Long.parseLong(Integer.toString(totalGolsMandante + totalGolsVisitante));
+    }
 
 }
